@@ -1,0 +1,352 @@
+[color=#800000][size=150]Description[/size][/color]
+[color=#000000][size=125]This library contains five functions for generating sets of random numbers that adhere to the distribution type. I wrote these for testing purposes, but they should be suitable for other use cases.[/size][/color]
+
+[color=#800000][size=150]Github link[/size][/color]
+[color=#000000][size=125][url]https://github.com/Nich-Cebolla/AutoHotkey-Distributions[/url][/color]
+
+[color=#800000][size=150]Features[/size][/color][color=#000000][size=125]
+- GenerateClusteredDistribution - Generates an array of values, where the values can be characterized as a series of sub-ranges, each sub-range containing an even distribution of values across the range.
+
+- GenerateEvenDistribution - Generates an array of values, where the values are the result of [c]Random(MinValue, MaxValue)[/c].
+
+- GenerateExponentialDistribution - Generates an array of values, where the values are the result of [c]Min(Max((Ln(1 - Random()) / Lambda * -1) + Lower, Lower), Upper)[/c]. [c]Lambda[/c], [c]Lower[/c], and [c]Upper[/c] are function inputs.
+
+- GenerateGaussianDistribution - Generates an array of values, where the values are the result of [c]Mean + StdDev * Sqrt(-2 * Ln(Random())) * Cos(2 * 3.141592653589793 * Random())[/c]. [c]Mean[/c] and [c]StdDev[/c] are function inputs.
+
+- GenerateWeightedDistribution - Generates an array of values, where the values are weighted against the entire sample. The resulting output for this is similar to GenerateClusteredDistribution, but the implementation utilizes a cumulative distribution function, whereas GenerateClusteredDistribution generates each cluster sequentially. This requires three array functions from my library here: https://www.autohotkey.com/boards/viewtopic.php?f=83&t=135399
+[/size][/color]
+
+[color=#800000][size=150]Extra functions[/size][/color][color=#000000][size=125]
+- Histogram - Generates a string histogram from an array of numbers. Try it with the results from these functions. [c]OutputDebug[/c] works well with the histogram output.
+
+- Stats - Functions necessary to validate the output of the Gaussian distribution.
+[/size][/color]
+[color=#800000][size=150]GenerateClusteredDistribution.ahk[/size][/color]
+
+[code]
+/**
+ * @description - Creates an array of values that follow a clustered distribution, where each
+ * individual cluster is characterized by an even distribution across a range. There may be gaps
+ * between the extreme values of the clusters.
+ * @param {Array} Input - An array of objects with the following properties:
+ * @property {Integer} Start - The minimum value of the cluster.
+ * @property {Integer} End - The maximum value of the cluster.
+ * @property {Float} Weight - The proportion of the cluster relative to the total length of the
+ * resulting array. The sum of the weights of all clusters must equal 1.
+ * @param {Integer} Length - The length of the resulting array.
+ * @param {Boolean} RandomizeClusterOrder - If true, the order which the clusters are created
+ * will be randomized.
+ * @returns {Array} - An array of values that follow the clustered distribution.
+ */
+GenerateClusteredDistribution(Input, Length, RandomizeClusterOrder := true) {
+    _SumWeights(&Total)
+    if Total != 1
+        throw Error('The sum of the weights of the Clusters must equal 1.', -1, 'Sum: ' Total)
+    Result := [], i := 0, TotalLength := 0
+    loop Input.Length {
+        Input[A_Index].LoopCount := LoopCount := Floor(Length * Input[A_Index].Weight)
+        TotalLength += LoopCount
+    }
+    if TotalLength !== Length {
+        k := 0
+        loop Length - TotalLength {
+            if ++k > Input.Length
+                k := 1
+            Input[k].LoopCount++
+        }
+    }
+    if RandomizeClusterOrder {
+        Order := [], Order.Length := Input.Length
+        loop Input.Length
+            Order[A_Index] := A_Index
+        loop Order.Length {
+            Cluster := Input[Order.RemoveAt(Random(1, Order.Length))]
+            loop Cluster.LoopCount
+                Result[++i] := Random(Cluster.Start, Cluster.End)
+        }
+    } else {
+        for Cluster in Input {
+            loop Cluster.LoopCount
+                Result[++i] := Random(Cluster.Start, Cluster.End)
+        }
+    }
+    return Result
+
+    _SumWeights(&Total) {
+        Total := 0
+        for Item in Input
+            Total += Input.Weight
+    }
+}
+
+[/code]
+
+[color=#800000][size=150]GenerateEvenDistribution.ahk[/size][/color]
+
+[code]
+
+/**
+ * @description - Generates an array of values that follow an even distribution.
+ * @param {Number} MinValue - The minimum value of the distribution.
+ * @param {Number} MaxValue - The maximum value of the distribution.
+ * @param {Number} Length - The length of the resulting array.
+ * @param {Boolean} AsIntegers - If true, the values will be integers.
+ * @param {Integer} Digits - The number of decimal places to round to.
+ * @returns {Array} - An array of values that follow the even distribution.
+ */
+GenerateEvenDistribution(MinValue, MaxValue, Length, AsIntegers := false, Digits := 5) {
+    local Result := []
+    Result.Length := ArrLength
+    if AsIntegers
+        _Random := () => Random(MinValue, MaxValue)
+    else
+        MaxValue--, _Random := () => Random(MinValue, MaxValue) + (Digits ? Round(Random(), Digits) : Random())
+    Loop Result.Length
+        Result[A_Index] := _Random()
+    return Result
+}
+
+[/code]
+
+[color=#800000][size=150]GenerateExponentialDistribution.ahk[/size][/color]
+
+[code]
+
+/**
+ * @description - Creates an array of values that follow an exponential distribution.
+ * @param {Float} Lambda - The rate parameter of the exponential distribution.
+ * @param {Number} Lower - The lower limit of the exponential distribution.
+ * @param {Number} Upper - The upper limit of the exponential distribution.
+    @example
+        ; For demonstration, this example uses the Histogram function
+        #Include <Histogram>
+        arr := CreateWeightedExponentialArray(0.03, 0, 1000, 1000)
+        OutputDebug(Histogram(arr))
+    ;      0.000 - 13.388  : 323  ********************
+    ;     13.388 - 26.776  : 238  ***************
+    ;     26.776 - 40.163  : 139  *********
+    ;     40.163 - 53.551  : 95   ******
+    ;     53.551 - 66.939  : 61   ****
+    ;     66.939 - 80.327  : 43   ***
+    ;     80.327 - 93.715  : 34   **
+    ;     93.715 - 107.102 : 22   *
+    ;    107.102 - 120.490 : 14   *
+    ;    120.490 - 133.878 : 8
+    ;    133.878 - 147.266 : 7
+    ;    147.266 - 160.654 : 5
+    ;    160.654 - 174.041 : 3
+    ;    174.041 - 187.429 : 1
+    ;    187.429 - 200.817 : 2
+    ;    200.817 - 214.205 : 3
+    ;    214.205 - 227.592 : 1
+    ;    227.592 - 240.980 : 0
+    ;    240.980 - 254.368 : 0
+    ;    254.368 - 267.756 : 1
+    @
+ * {@link https://github.com/Nich-Cebolla/AutoHotkey-Distributions/blob/main/Histogram.ahk}
+ */
+GenerateExponentialDistribution(Lambda, Lower, Upper, Length) {
+    Result := [], i := 0
+    Result.Length := Length
+    loop Length
+        Result[A_Index] := Min(Max((Ln(1 - Random()) / Lambda * -1) + Lower, Lower), Upper)
+    return Result
+}
+
+[/code]
+
+[color=#800000][size=150]GenerateGaussianDistribution.ahk[/size][/color]
+
+[code]
+
+/**
+ * @description - Generates an array containing values that follow a Gaussian distribution.
+ * @param {Number} Mean - The mean of the Gaussian distribution.
+ * @param {Number} StdDev - The standard deviation of the Gaussian distribution.
+ * @param {Integer} Length - The length of the resulting array.
+ * @returns {Array} - An array of values that follow the Gaussian distribution.
+    @example
+        ; For demonstration, this example uses the Histogram function
+        #Include <Histogram>
+        OutputDebug(Histogram(GenerateGaussianDistribution(50, 10, 10000)))
+        ; 13.060 - 16.734 : 3
+        ; 16.734 - 20.409 : 7
+        ; 20.409 - 24.083 : 34
+        ; 24.083 - 27.757 : 92    *
+        ; 27.757 - 31.431 : 190   ***
+        ; 31.431 - 35.106 : 375   *****
+        ; 35.106 - 38.780 : 681   *********
+        ; 38.780 - 42.454 : 947   *************
+        ; 42.454 - 46.128 : 1216  *****************
+        ; 46.128 - 49.803 : 1451  ********************
+        ; 49.803 - 53.477 : 1402  *******************
+        ; 53.477 - 57.151 : 1256  *****************
+        ; 57.151 - 60.825 : 989   **************
+        ; 60.825 - 64.499 : 611   ********
+        ; 64.499 - 68.174 : 418   ******
+        ; 68.174 - 71.848 : 199   ***
+        ; 71.848 - 75.522 : 83    *
+        ; 75.522 - 79.196 : 32
+        ; 79.196 - 82.871 : 12
+        ; 82.871 - 86.545 : 2
+    @
+ * {@link https://github.com/Nich-Cebolla/AutoHotkey-Distributions/blob/main/Histogram.ahk}
+ */
+GenerateGaussianDistribution(Mean, StdDev, Length) {
+    Result := [], Result.Length := Length, i := 0
+    loop Length
+        Result[++i] := Mean + StdDev * Sqrt(-2 * Ln(Random())) * Cos(2 * 3.141592653589793 * Random())
+    return Result
+}
+
+[/code]
+
+[color=#800000][size=150]GenerateWeightedDistribution.ahk[/size][/color]
+
+[code]
+#Include <Array>
+
+/**
+ * @description - Creates an array of values that follow a weighted distribution.
+ * @param {Array} Input - An object with the following properties:
+    @example
+    input :=  [
+        { Start: 0, End: 25, Weight: 0.3 },
+        { Start: 25, End: 50, Weight: 0.2 },
+        { Start: 50, End: 75, Weight: 0.4 },
+        { Start: 75, End: 100, Weight: 0.1 }
+    ]
+    arr := GenerateWeightedDistribution(input, 1000)
+    @
+ * @returns {Array} - An array of values that follow the weighted distribution.
+ */
+GenerateWeightedDistribution(Input, Length) {
+    local Result := [], i := 0
+    , CDF := [], Cumulative := 0, TotalWeight := Input.Reduce(_GetTotalWeight, 0)
+    Result.Length := Length
+    Input.ForEach(_GetCDFItem)
+    loop Length
+        Result[A_Index] := _GetNumber()
+    return Result
+
+    _GetTotalWeight(&Accumulator, Segment, *) {
+        Accumulator += Segment.Weight * (Segment.End - Segment.Start)
+    }
+    _GetNumber() {
+        SelectedSegment := CDF.Find(((n, Segment, *) => n <= Segment.Cumulative).Bind(Random()))
+        return Random() * (SelectedSegment.End - SelectedSegment.Start) + SelectedSegment.Start
+    }
+    _GetCDFItem(Segment, *) {
+        Cumulative += Segment.Weight * (Segment.End - Segment.Start) / TotalWeight
+        CDF.Push({Start: Segment.Start, End: Segment.End, Weight: Segment.Weight, Cumulative: Cumulative})
+    }
+}
+
+[/code]
+
+[color=#800000][size=150]Histogram.ahk[/size][/color]
+
+[code]
+
+/**
+ * @description - Generates a histogram from an array of numbers.
+ * @param {Array} Data - An array of numbers.
+ * @param {Integer} [Bins=20] - The number of bins to divide the data into.
+ * @param {Integer} [MaxSymbols=20] - The maximum number of symbols to use in the histogram.
+ * @param {String} [Symbol='*'] - The symbol to use in the histogram.
+ * @param {String} [Newline='`r`n'] - The newline character to use.
+ * @param {Integer} [Digits=3] - The number of digits to round the bin values to.
+ * @returns {String} - The histogram.
+ *  @example
+        ; Assume an array of numbers, `Data`, has been defined.
+        OutputDebug(Histogram(Data))
+    ;      0.000 - 49.927  : 43  **************
+    ;     49.927 - 99.853  : 46  ***************
+    ;     99.853 - 149.780 : 49  ****************
+    ;    149.780 - 199.707 : 43  **************
+    ;    199.707 - 249.633 : 54  ******************
+    ;    249.633 - 299.560 : 48  ****************
+    ;    299.560 - 349.486 : 55  ******************
+    ;    349.486 - 399.413 : 53  *****************
+    ;    399.413 - 449.340 : 57  *******************
+    ;    449.340 - 499.266 : 43  **************
+    ;    499.266 - 549.193 : 58  *******************
+    ;    549.193 - 599.120 : 44  **************
+    ;    599.120 - 649.046 : 61  ********************
+    ;    649.046 - 698.973 : 47  ***************
+    ;    698.973 - 748.900 : 49  ****************
+    ;    748.900 - 798.826 : 57  *******************
+    ;    798.826 - 848.753 : 51  *****************
+    ;    848.753 - 898.679 : 46  ***************
+    ;    898.679 - 948.606 : 52  *****************
+    ;    948.606 - 998.533 : 44  **************
+    @
+ */
+Histogram(Data, Bins := 20, MaxSymbols := 20, Symbol := '*', Newline := '`r`n', Digits := 3) {
+    local BinSize, Lowest, Counts, Index, LargestCount, LargestLen, FormatStr, Start, End, Str
+    BinSize := ((Highest := Max(Data*)) - (Lowest := Min(Data*)) + 1) / Bins, Counts := []
+    Counts.Length := Bins
+    Loop Bins
+        Counts[A_Index] := 0
+    Loop Data.Length {
+        i := A_Index
+        Loop Bins {
+            if _FindBin(Data[i], A_Index) {
+                j := A_Index
+                break
+            }
+        }
+        Counts[j]++
+    }
+    LargestCount := Max(Counts*), LargestLen := StrLen(LargestCount)
+    Padding := StrLen(Round(BinSize*Bins, Digits))
+    FormatStr := '{1:' Padding '} - {2:-' Padding '} : {3:-' LargestLen '}  {4}' Newline
+    Start := End := Lowest
+    Loop Bins
+        _AddSegment(A_Index)
+    return str
+
+    _AddSegment(Index) {
+        End += BinSize
+        Symbols := ''
+        Loop Round(Counts[Index] / LargestCount * MaxSymbols, 0)
+            Symbols .= Symbol
+        Str .= Format(FormatStr, Round(Start, Digits), Round(End, Digits), Counts[Index], Symbols)
+        Start := End
+    }
+    _FindBin(Value, Index) {
+        return Value > BinSize * (Index - 1) + Lowest && Value <= BinSize * Index + Lowest
+    }
+}
+
+[/code]
+
+[color=#800000][size=150]Stats.ahk[/size][/color]
+
+[code]
+
+StdDev(Data, SampleVarianceOffset := 0) => Sqrt(Variance(Data, SampleVarianceOffset))
+Variance(Data, SampleVarianceOffset := 0) => SumSquaredDifference(Data, Mean(Data)) / (Data.Length + SampleVarianceOffset)
+Mean(Data) {
+    if Data.Length < 2
+        throw ValueError('The dataset must have at least 2 items.', -1, 'Length: ' Data.Length)
+    Total := i := n := 0
+    while ++i <= Data.Length {
+        if Data.Has(i)
+            Total += Data[i], n++
+    }
+    return Total / n
+}
+SumSquaredDifference(Data, Mean) {
+    Total := i := 0
+    while ++i <= Data.Length
+        Total += (Data[i] - Mean)*(Data[i] - Mean)
+    return Total
+}
+
+[/code]
+
+
+[color=#800000][size=150]Changelog[/size][/color]
+[color=#000000][size=120]2025-01-19[/size][/color]
+- Uploaded library
