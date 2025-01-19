@@ -12,3 +12,9 @@ GenerateExponentialDistribution - Generates an array of values, where the values
 GenerateGaussianDistribution - Generates an array of values, where the values are the result of `Mean + StdDev * Sqrt(-2 * Ln(Random())) * Cos(2 * 3.141592653589793 * Random())`. `Mean` and `StdDev` are function inputs.
 
 GenerateWeightedDistribution - Generates an array of values, where the values are weighted against the entire sample. The resulting output for this is similar to GenerateClusteredDistribution, but the implementation utilizes a cumulative distribution function, whereas GenerateClusteredDistribution generates each cluster sequentially.
+
+Extra contents:
+
+Histogram - Generates a string histogram from an array of numbers. Try it with the results from these functions. `OutputDebug` works well with the histogram output.
+
+Stats - Four functions for testing the result from the Gaussian distribution: `Mean`, `Variance`, `SumSquaredDifference`, `StdDev`.
