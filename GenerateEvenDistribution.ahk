@@ -10,7 +10,7 @@
  */
 GenerateEvenDistribution(MinValue, MaxValue, Length, AsIntegers := false, Digits := 5) {
     local Result := []
-    Result.Length := ArrLength
+    Result.Length := Length
     if AsIntegers
         _Random := () => Random(MinValue, MaxValue)
     else
