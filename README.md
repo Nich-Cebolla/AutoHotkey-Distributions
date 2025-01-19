@@ -11,7 +11,7 @@ GenerateExponentialDistribution - Generates an array of values, where the values
 
 GenerateGaussianDistribution - Generates an array of values, where the values are the result of `Mean + StdDev * Sqrt(-2 * Ln(Random())) * Cos(2 * 3.141592653589793 * Random())`. `Mean` and `StdDev` are function inputs.
 
-GenerateWeightedDistribution - Generates an array of values, where the values are weighted against the entire sample. The resulting output for this is similar to GenerateClusteredDistribution, but the implementation utilizes a cumulative distribution function, whereas GenerateClusteredDistribution generates each cluster sequentially.
+GenerateWeightedDistribution - Generates an array of values, where the values are weighted against the entire sample. The resulting output for this is similar to GenerateClusteredDistribution, but the implementation utilizes a cumulative distribution function, whereas GenerateClusteredDistribution generates each cluster sequentially. This requires three array functions from my library here: https://github.com/Nich-Cebolla/AutoHotkey-Array
 
 Extra contents:
 
