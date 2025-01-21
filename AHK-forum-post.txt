@@ -324,23 +324,24 @@ Histogram(Data, Bins := 20, MaxSymbols := 20, Symbol := '*', Newline := '`r`n', 
 [color=#800000][size=150]Stats.ahk[/size][/color]
 
 [code]
-
 StdDev(Data, SampleVarianceOffset := 0) => Sqrt(Variance(Data, SampleVarianceOffset))
 Variance(Data, SampleVarianceOffset := 0) => SumSquaredDifference(Data, Mean(Data)) / (Data.Length + SampleVarianceOffset)
 Mean(Data) {
     if Data.Length < 2
         throw ValueError('The dataset must have at least 2 items.', -1, 'Length: ' Data.Length)
-    Total := i := n := 0
-    while ++i <= Data.Length {
-        if Data.Has(i)
-            Total += Data[i], n++
+    Total := n := 0
+    for Item in Data {
+        if IsSet(Item)
+            Total += Item, n++
     }
     return Total / n
 }
 SumSquaredDifference(Data, Mean) {
-    Total := i := 0
-    while ++i <= Data.Length
-        Total += (Data[i] - Mean)*(Data[i] - Mean)
+    Total := 0
+    For Item in Data {
+        if IsSet(Item)
+            Total += (Item - Mean)*(Item - Mean)
+    }
     return Total
 }
 
@@ -348,5 +349,7 @@ SumSquaredDifference(Data, Mean) {
 
 
 [color=#800000][size=150]Changelog[/size][/color]
+[color=#000000][size=120]2025-01-20[/size][/color]
+- Adjusted [c]SumSquaredDifference[/c] to account for unset array indices. Changed the loop style in [c]SumSquaredDifference[/c] and [c]Mean[/c] to be slightly more efficient.
 [color=#000000][size=120]2025-01-19[/size][/color]
 - Uploaded library
