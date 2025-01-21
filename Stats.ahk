@@ -4,14 +4,18 @@ Variance(Data, SampleVarianceOffset := 0) => SumSquaredDifference(Data, Mean(Dat
 Mean(Data) {
     if Data.Length < 2
         throw ValueError('The dataset must have at least 2 items.', -1, 'Length: ' Data.Length)
-    Total := 0
-    for Item in Data
-        Total += Item
-    return Total / Data.length
+    Total := n := 0
+    for Item in Data {
+        if IsSet(Item)
+            Total += Item, n++
+    }
+    return Total / n
 }
 SumSquaredDifference(Data, Mean) {
     Total := 0
-    for Item in Data
-        Total += (Item - Mean)*(Item - Mean)
+    For Item in Data {
+        if IsSet(Item)
+            Total += (Item - Mean)*(Item - Mean)
+    }
     return Total
 }
